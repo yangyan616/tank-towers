@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tank Towers Defense</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a2a3d 0%, #0d1b2a 100%);
+            font-family: Arial, sans-serif;
+        }
+        .game-title {
+            color: white;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .game-title h1 {
+            font-size: 28px;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .game-hint {
+            color: #aaccff;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+        }
+        #gameContainer {
+            position: relative;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        #gameCanvas {
+            background-image: linear-gradient(to bottom, #0a3142 0%, #1c4966 50%, #0a3142 100%);
+            display: block;
+        }
+        #ui {
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            background-color: rgba(20, 30, 40, 0.8);
+            padding: 10px;
+            border-radius: 8px 8px 0 0;
+        }
+        #towerButtons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 200px;
+        }
+        .towerBtn {
+            background: linear-gradient(to bottom, #555 0%, #444 100%);
+            color: white;
+            border: 1px solid #666;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+            text-align: left;
+            position: relative;
+        }
+        .towerBtn:hover {
+            background: linear-gradient(to bottom, #666 0%, #555 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .towerBtn:hover .tower-tooltip {
+            display: block;
+        }
+        .ui-value {
+            font-weight: bold;
+            color: #ffd700;
+        }
+        /* Add game field decorations */
+        #gameContainer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(255, 255, 255, 0.05) 40px,
+                    rgba(255, 255, 255, 0.05) 80px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(255, 255, 255, 0.05) 40px,
+                    rgba(255, 255, 255, 0.05) 80px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+        #gameCanvas {
+            position: relative;
+            z-index: 0;
+        }
+        .tower-tooltip {
+            display: none;
+            position: absolute;
+            left: -160px;
+            top: 0;
+            width: 150px;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid rgba(100, 100, 100, 0.5);
+            border-radius: 5px;
+            padding: 8px;
+            color: white;
+            font-size: 12px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .stats-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #bbbbbb;
+        }
+        .stats-value {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .stats-label {
+            color: #aaaaaa;
+        }
+        .stats-number {
+            font-weight: bold;
+        }
+        .tower-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .basic-color {
+            background-color: #4287f5;
+        }
+        .rapid-color {
+            background-color: #42f5a7;
+        }
+        .heavy-color {
+            background-color: #f54242;
+        }
+        .ice-color {
+            background-color: #42c5ff;
+        }
+        .flamer-color {
+            background-color: #ff7700;
+        }
+        .bomber-color {
+            background-color: #b042ff;
+        }
+        .locked-tower {
+            position: relative;
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: linear-gradient(to bottom, #444 0%, #333 100%);
+            overflow: hidden;
+        }
+        .locked-tower:hover {
+            background: linear-gradient(to bottom, #444 0%, #333 100%);
+            transform: none;
+            box-shadow: none;
+        }
+        .locked-tower::after {
+            content: '🔒';
+            position: absolute;
+            right: 10px;
+            top: 8px;
+            font-size: 16px;
+        }
+        .unlock-text {
+            font-size: 10px;
+            color: #ffcc66;
+            font-style: italic;
+            margin-top: 2px;
+        }
+        .special-ability {
+            font-size: 10px;
+            color: #66ccff;
+            margin-top: 2px;
+        }
+        #toggleShopButton {
+            position: absolute;
+            right: 220px;
+            top: 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a5d7a 0%, #2c394f 100%);
+            border: 2px solid #6b88ad;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        #toggleShopButton:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        #toggleShopButton:active {
+            transform: scale(0.95);
+        }
+        
+        /* Start Screen Styles */
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #startScreen h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.8), 
+                         0 0 20px rgba(0, 150, 255, 0.5);
+            animation: title-pulse 2s infinite alternate;
+        }
+        
+        @keyframes title-pulse {
+            from { text-shadow: 0 0 10px rgba(0, 150, 255, 0.8), 0 0 20px rgba(0, 150, 255, 0.5); }
+            to { text-shadow: 0 0 15px rgba(0, 200, 255, 0.9), 0 0 30px rgba(0, 200, 255, 0.7); }
+        }
+        
+        #startScreen p {
+            font-size: 18px;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.5;
+        }
+        
+        #startButton {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: linear-gradient(to bottom, #4CAF50 0%, #2E7D32 100%);
+            border: 2px solid #388E3C;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        #startButton::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.7s;
+        }
+        
+        #startButton:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        #startButton:hover::before {
+            left: 100%;
+        }
+        
+        .tank-icon {
+            width: 100px;
+            height: 50px;
+            position: relative;
+            margin: 0 auto 30px;
+        }
+        
+        .tank-body {
+            width: 80px;
+            height: 30px;
+            background-color: #4d8b54;
+            border-radius: 5px;
+            position: relative;
+            margin: 0 auto;
+        }
+        
+        .tank-turret {
+            width: 30px;
+            height: 20px;
+            background-color: #3a6940;
+            border-radius: 50%;
+            position: absolute;
+            top: -5px;
+            left: 25px;
+        }
+        
+        .tank-barrel {
+            width: 40px;
+            height: 8px;
+            background-color: #333;
+            position: absolute;
+            top: 6px;
+            left: 30px;
+            border-radius: 4px;
+        }
+        
+        .tank-track {
+            width: 100%;
+            height: 10px;
+            background-color: #333;
+            position: absolute;
+            bottom: -5px;
+            border-radius: 5px;
+        }
+        
+        .tank-track::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: repeating-linear-gradient(90deg, #555, #555 5px, #333 5px, #333 10px);
+            top: 3px;
+        }
+        
+        .instructions {
+            display: flex;
+            justify-content: space-around;
+            width: 600px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .instruction-item {
+            text-align: center;
+            width: 150px;
+        }
+        
+        .instruction-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .instruction-text {
+            font-size: 14px;
+        }
+        
+        #sellButton {
+            background: linear-gradient(to bottom, #c43c3c 0%, #a43030 100%);
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        #upgradeButton {
+            background: linear-gradient(to bottom, #3c5fc4 0%, #304aa4 100%);
+            margin-top: 10px;
+            width: 100%;
+            border: 1px solid #5171cc;
+        }
+        
+        #upgradeButton:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #4a70d9 0%, #3e5abd 100%);
+        }
+        
+        #upgradeButton:disabled, .disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #upgradeButton:disabled:hover, .disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .upgrade-star {
+            color: #ffcc00;
+            font-size: 14px;
+            margin-left: 2px;
+            text-shadow: 0 0 3px rgba(255, 180, 0, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-title">
+        <h1>TANK TOWERS DEFENSE</h1>
+        <div class="game-hint">💡 Hover over towers to see detailed stats | Press T to toggle tower shop</div>
+    </div>
+    
+    <div id="gameContainer">
+        <div id="ui">
+            <div id="resources">Cash: <span id="cash" class="ui-value">100</span></div>
+            <div id="lives">Lives: <span id="livesCount" class="ui-value">10</span></div>
+            <div id="wave">Wave: <span id="waveCount" class="ui-value">1</span></div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <button id="toggleShopButton" title="Toggle Tower Shop (Press T)">
+            🛍️
+        </button>
+        <div id="towerButtons">
+            <button class="towerBtn" id="basicTower">
+                <span class="tower-color basic-color"></span>Basic Tank ($10)
+                <div class="tower-tooltip">
+                    <div class="stats-title">Basic Tank</div>
+                    <div class="stats-value">
+                        <span class="stats-label">Damage:</span>
+                        <span class="stats-number">1</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Fire Rate:</span>
+                        <span class="stats-number">1.0/sec</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Range:</span>
+                        <span class="stats-number">100</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">DPS:</span>
+                        <span class="stats-number">1.0</span>
+                    </div>
+                </div>
+            </button>
+            <button class="towerBtn" id="rapidTower">
+                <span class="tower-color rapid-color"></span>Semi Auto ($25)
+                <div class="tower-tooltip">
+                    <div class="stats-title">Semi Auto</div>
+                    <div class="stats-value">
+                        <span class="stats-label">Damage:</span>
+                        <span class="stats-number">0.5</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Fire Rate:</span>
+                        <span class="stats-number">2.5/sec</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Range:</span>
+                        <span class="stats-number">80</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">DPS:</span>
+                        <span class="stats-number">1.3</span>
+                    </div>
+                </div>
+            </button>
+            <button class="towerBtn" id="heavyTower">
+                <span class="tower-color heavy-color"></span>Super Shooter ($50)
+                <div class="tower-tooltip">
+                    <div class="stats-title">Super Shooter</div>
+                    <div class="stats-value">
+                        <span class="stats-label">Damage:</span>
+                        <span class="stats-number">3</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Fire Rate:</span>
+                        <span class="stats-number">0.7/sec</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Range:</span>
+                        <span class="stats-number">120</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">DPS:</span>
+                        <span class="stats-number">2.0</span>
+                    </div>
+                </div>
+            </button>
+            
+            <!-- Ice Tank - Locked until first boss (Wave 5) -->
+            <button class="towerBtn locked-tower" id="iceTower" disabled>
+                <span class="tower-color ice-color"></span>Ice Tank ($75)
+                <div class="unlock-text">Unlocks after defeating Wave 5 Boss</div>
+                <div class="special-ability">Special: Slows enemies</div>
+                <div class="tower-tooltip">
+                    <div class="stats-title">Ice Tank</div>
+                    <div class="stats-value">
+                        <span class="stats-label">Damage:</span>
+                        <span class="stats-number">0.8</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Fire Rate:</span>
+                        <span class="stats-number">1.2/sec</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Range:</span>
+                        <span class="stats-number">110</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Special:</span>
+                        <span class="stats-number">Slows 50%</span>
+                    </div>
+                </div>
+            </button>
+            
+            <!-- Flamer - Locked until second boss (Wave 10) -->
+            <button class="towerBtn locked-tower" id="flamerTower" disabled>
+                <span class="tower-color flamer-color"></span>Flamer ($100)
+                <div class="unlock-text">Unlocks after defeating Wave 10 Boss</div>
+                <div class="special-ability">Special: Burns enemies over time</div>
+                <div class="tower-tooltip">
+                    <div class="stats-title">Flamer</div>
+                    <div class="stats-value">
+                        <span class="stats-label">Damage:</span>
+                        <span class="stats-number">1.2</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Fire Rate:</span>
+                        <span class="stats-number">3.3/sec</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Range:</span>
+                        <span class="stats-number">90</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Special:</span>
+                        <span class="stats-number">DoT 0.3/s</span>
+                    </div>
+                </div>
+            </button>
+            
+            <!-- Bomber - Locked until third boss (Wave 15) -->
+            <button class="towerBtn locked-tower" id="bomberTower" disabled>
+                <span class="tower-color bomber-color"></span>Bomber ($150)
+                <div class="unlock-text">Unlocks after defeating Wave 15 Boss</div>
+                <div class="special-ability">Special: Splash damage</div>
+                <div class="tower-tooltip">
+                    <div class="stats-title">Bomber</div>
+                    <div class="stats-value">
+                        <span class="stats-label">Damage:</span>
+                        <span class="stats-number">2</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Fire Rate:</span>
+                        <span class="stats-number">0.5/sec</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Range:</span>
+                        <span class="stats-number">150</span>
+                    </div>
+                    <div class="stats-value">
+                        <span class="stats-label">Special:</span>
+                        <span class="stats-number">Splash 60px</span>
+                    </div>
+                </div>
+            </button>
+            
+            <button class="towerBtn" id="sellButton" style="background: linear-gradient(to bottom, #c43c3c 0%, #a43030 100%); margin-top: 20px;">
+                <span class="tower-color" style="background-color: #ff5555;"></span>Sell Tower
+            </button>
+            <button class="towerBtn" id="upgradeButton" style="display: none;">
+                <span class="tower-color" style="background-color: #5599ff;"></span>Upgrade Tower
+            </button>
+        </div>
+    </div>
+
+    <!-- Start Screen Overlay -->
+    <div id="startScreen">
+        <div class="tank-icon">
+            <div class="tank-body">
+                <div class="tank-turret"></div>
+                <div class="tank-barrel"></div>
+                <div class="tank-track"></div>
+            </div>
+        </div>
+        <h2>TANK TOWERS DEFENSE</h2>
+        <p>Defend your base against waves of enemy tanks! Build defense towers to protect your territory.</p>
+        
+        <div class="instructions">
+            <div class="instruction-item">
+                <div class="instruction-icon">🏗️</div>
+                <div class="instruction-text">Build towers to defend</div>
+            </div>
+            <div class="instruction-item">
+                <div class="instruction-icon">💰</div>
+                <div class="instruction-text">Earn money for kills</div>
+            </div>
+            <div class="instruction-item">
+                <div class="instruction-icon">🔓</div>
+                <div class="instruction-text">Unlock special towers</div>
+            </div>
+        </div>
+        
+        <button id="startButton">START GAME</button>
+        <div style="margin-top: 10px; font-size: 14px; color: #aaaaaa;">Press SPACE to start</div>
+    </div>
+
+    <script src="src/js/game.js" type="module"></script>
+    
+    <!-- Start screen animations -->
+    <script>
+        // Animate the tank icon
+        const tankIcon = document.querySelector('.tank-icon');
+        let direction = 1;
+        let position = 0;
+        
+        function animateTank() {
+            position += direction * 0.5;
+            
+            if (position > 30) {
+                direction = -1;
+            } else if (position < -30) {
+                direction = 1;
+            }
+            
+            tankIcon.style.transform = `translateX(${position}px)`;
+            requestAnimationFrame(animateTank);
+        }
+        
+        // Start the animation
+        animateTank();
+        
+        // Add keyboard shortcut to start the game with space key
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.key === ' ') {
+                const startButton = document.getElementById('startButton');
+                if (startButton && window.game && !window.game.gameStarted) {
+                    startButton.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

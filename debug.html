@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Tank Towers</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #333;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #gameFrame {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+        #debugPanel {
+            padding: 10px;
+            background-color: #222;
+            max-height: 200px;
+            overflow: auto;
+            border-top: 2px solid #666;
+        }
+        #clearConsole {
+            padding: 5px 10px;
+            margin: 5px;
+            background-color: #444;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+        .error { color: #ff5555; }
+        .warn { color: #ffaa55; }
+        .info { color: #5555ff; }
+    </style>
+</head>
+<body>
+    <iframe id="gameFrame" src="index.html"></iframe>
+    <div id="debugPanel">
+        <button id="clearConsole">Clear Console</button>
+        <div id="debugConsole"></div>
+    </div>
+
+    <script>
+        const debugConsole = document.getElementById('debugConsole');
+        const clearBtn = document.getElementById('clearConsole');
+        
+        // Intercept iframe errors
+        window.addEventListener('error', function(event) {
+            const errorMessage = document.createElement('div');
+            errorMessage.classList.add('error');
+            errorMessage.textContent = `ERROR: ${event.message} at ${event.filename}:${event.lineno}`;
+            debugConsole.appendChild(errorMessage);
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+            event.preventDefault();
+        }, true);
+        
+        // Clear console
+        clearBtn.addEventListener('click', function() {
+            debugConsole.innerHTML = '';
+        });
+
+        // Load check
+        window.addEventListener('load', function() {
+            const loadMessage = document.createElement('div');
+            loadMessage.classList.add('info');
+            loadMessage.textContent = `Page loaded at ${new Date().toLocaleTimeString()}`;
+            debugConsole.appendChild(loadMessage);
+        });
+
+        // Check game frame loaded
+        document.getElementById('gameFrame').addEventListener('load', function() {
+            const loadMessage = document.createElement('div');
+            loadMessage.classList.add('info');
+            loadMessage.textContent = `Game frame loaded at ${new Date().toLocaleTimeString()}`;
+            debugConsole.appendChild(loadMessage);
+
+            try {
+                // Test if JavaScript modules are working
+                const frameDoc = this.contentWindow.document;
+                const scriptTest = document.createElement('div');
+                scriptTest.classList.add('info');
+                scriptTest.textContent = `Game scripts found: ${frameDoc.scripts.length}`;
+                debugConsole.appendChild(scriptTest);
+            } catch (e) {
+                const errorMessage = document.createElement('div');
+                errorMessage.classList.add('error');
+                errorMessage.textContent = `ERROR accessing frame: ${e.message}`;
+                debugConsole.appendChild(errorMessage);
+            }
+        });
+    </script>
+</body>
+</html> 
