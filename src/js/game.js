@@ -203,6 +203,16 @@ class Game {
         }
     }
     
+    getCanvasCoords(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+    
     initEventListeners() {
         // Start button
         const startButton = document.getElementById('startButton');
@@ -212,90 +222,124 @@ class Game {
             });
         }
         
-        // Mouse move for cursor styling over buttons
-        this.canvas.addEventListener('mousemove', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            // Update stored mouse position for other uses
+        const handlePointerMove = (clientX, clientY) => {
+            const { x, y } = this.getCanvasCoords(clientX, clientY);
             this.mouseX = x;
             this.mouseY = y;
-            
-            // Check if mouse is over restart button
             if (this.gameOver && this.restartButtonBounds) {
                 const bounds = this.restartButtonBounds;
-                if (
-                    x >= bounds.x && 
-                    x <= bounds.x + bounds.width && 
-                    y >= bounds.y && 
-                    y <= bounds.y + bounds.height
-                ) {
+                if (x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height) {
                     this.canvas.style.cursor = 'pointer';
                     return;
                 }
             }
-            
-            // Otherwise set cursor based on game state
-            if (this.selectedTower) {
-                this.canvas.style.cursor = 'crosshair';
-            } else {
-                this.canvas.style.cursor = 'default';
-            }
+            this.canvas.style.cursor = this.selectedTower ? 'crosshair' : 'default';
+        };
+        
+        // Mouse move for cursor styling over buttons
+        this.canvas.addEventListener('mousemove', (e) => {
+            handlePointerMove(e.clientX, e.clientY);
         });
         
         // Tower placement and selling
-        this.canvas.addEventListener('click', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            // Handle game over restart button
+        this.handleCanvasClick = (canvasX, canvasY) => {
+            const x = canvasX;
+            const y = canvasY;
             if (this.gameOver && this.restartButtonBounds) {
                 const bounds = this.restartButtonBounds;
-                if (
-                    x >= bounds.x && 
-                    x <= bounds.x + bounds.width && 
-                    y >= bounds.y && 
-                    y <= bounds.y + bounds.height
-                ) {
-                    // Visual click effect
+                if (x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height) {
                     this.buttonClickEffect = {
                         x: this.width / 2,
                         y: bounds.y + bounds.height / 2,
                         radius: 5,
                         maxRadius: 40,
                         alpha: 1,
-                        duration: 300, // ms
+                        duration: 300,
                         startTime: performance.now()
                     };
-                    
-                    // Wait a moment to show the click effect before restarting
-                    setTimeout(() => {
-                        this.restartGame();
-                    }, 150);
-                    
+                    setTimeout(() => this.restartGame(), 150);
                     return;
                 }
             }
-            
-            if (!this.gameStarted || this.gameOver) return; // Ignore clicks if game not started or is over
-            
+            if (!this.gameStarted || this.gameOver) return;
             if (this.selectedTower) {
-                // Check if we have enough cash
-                if (this.cash >= this.towerTypes[this.selectedTower].cost) {
-                    // Check if position is valid (not too close to other towers)
-                    if (this.isValidTowerPosition(x, y)) {
-                        this.placeTower(x, y, this.selectedTower);
-                        this.cash -= this.towerTypes[this.selectedTower].cost;
-                        this.updateUI();
-                    }
+                if (this.cash >= this.towerTypes[this.selectedTower].cost && this.isValidTowerPosition(x, y)) {
+                    this.placeTower(x, y, this.selectedTower);
+                    this.cash -= this.towerTypes[this.selectedTower].cost;
+                    this.updateUI();
                 }
             } else {
-                // If neither sell mode nor tower selected, check if clicking on existing tower
                 this.selectTowerAtPosition(x, y);
             }
+        };
+        
+        this.clearTowerSelection = () => {
+            this.selectedTower = null;
+            this.selectedExistingTower = null;
+            if (this.sellButton) this.sellButton.classList.remove('active');
+            if (this.upgradeButton) {
+                this.upgradeButton.classList.remove('active');
+                this.upgradeButton.style.display = 'none';
+            }
+            this.updateUI();
+        };
+        
+        let lastTouchClickTime = 0;
+        this.canvas.addEventListener('click', (e) => {
+            // Ignore duplicate click from browser after touch (mobile)
+            if (Date.now() - lastTouchClickTime < 400) return;
+            const { x, y } = this.getCanvasCoords(e.clientX, e.clientY);
+            this.handleCanvasClick(x, y);
         });
+        
+        // Touch support for mobile
+        let touchStartTime = 0;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        this.canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            touchStartTime = Date.now();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            handlePointerMove(touchStartX, touchStartY);
+        }, { passive: true });
+        this.canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length !== 1) return;
+            e.preventDefault();
+            handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        this.canvas.addEventListener('touchend', (e) => {
+            if (e.changedTouches.length !== 1) return;
+            const t = e.changedTouches[0];
+            const elapsed = Date.now() - touchStartTime;
+            const dx = t.clientX - touchStartX;
+            const dy = t.clientY - touchStartY;
+            if (elapsed < 400 && Math.sqrt(dx * dx + dy * dy) < 30) {
+                e.preventDefault();
+                lastTouchClickTime = Date.now();
+                const { x, y } = this.getCanvasCoords(t.clientX, t.clientY);
+                this.handleCanvasClick(x, y);
+            }
+        }, { passive: false });
+        
+        // Unselect only when tapping/clicking the dark blue background (outside game container).
+        // (No mouseleave/pointerleave — that cleared selection on finger lift before tap was handled and blocked placing towers.)
+        document.addEventListener('click', (e) => {
+            if (!this.gameStarted || this.gameOver) return;
+            if (e.target.closest('#gameContainer')) return; // inside game area (canvas, UI, tower panel)
+            if (e.target.closest('#startScreen')) return;   // start screen overlay
+            if (e.target.closest('#startWaveButton')) return; // Start Wave button (on dark blue)
+            this.clearTowerSelection();
+        });
+        document.addEventListener('touchend', (e) => {
+            if (!this.gameStarted || this.gameOver) return;
+            const target = e.changedTouches && e.changedTouches[0] ? document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY) : e.target;
+            if (!target) return;
+            if (target.closest('#gameContainer')) return;
+            if (target.closest('#startScreen')) return;
+            if (target.closest('#startWaveButton')) return;
+            this.clearTowerSelection();
+        }, { passive: true });
         
         // Tower shop toggle button
         const toggleShopButton = document.getElementById('toggleShopButton');
@@ -421,6 +465,18 @@ class Game {
                 this.startWave();
             }
         });
+        
+        // Start Wave button (for mobile / touch)
+        const startWaveBtn = document.getElementById('startWaveButton');
+        if (startWaveBtn) {
+            startWaveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.gameStarted && !this.gameOver && !this.victoryAchieved && !this.waveInProgress) {
+                    this.startWave();
+                }
+            });
+        }
         
         // Clear selections on right-click or escape key
         document.addEventListener('keydown', (e) => {
@@ -1060,12 +1116,15 @@ class Game {
             this.checkWaveComplete();
             
             // Display "Start Wave" message if no wave in progress
-            if (!this.waveInProgress && !this.victoryAchieved) {
+            const showStartWave = this.gameStarted && !this.gameOver && !this.victoryAchieved && !this.waveInProgress;
+            if (showStartWave) {
                 this.ctx.font = '24px Arial';
                 this.ctx.fillStyle = 'white';
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText('Right click to start next wave', this.width / 2, 90);
+                this.ctx.fillText('Right click or tap Start Wave', this.width / 2, 90);
             }
+            const startWaveBtn = document.getElementById('startWaveButton');
+            if (startWaveBtn) startWaveBtn.classList.toggle('visible', showStartWave);
             
             // Draw wave progress bar
             this.drawWaveProgressBar();
@@ -2315,11 +2374,13 @@ class Game {
     }
 }
 
-// Get mouse position for tower placement preview
+// Get mouse position for tower placement preview (uses game's coordinate scaling)
 document.getElementById('gameCanvas').addEventListener('mousemove', (e) => {
-    const rect = document.getElementById('gameCanvas').getBoundingClientRect();
-    window.game.mouseX = e.clientX - rect.left;
-    window.game.mouseY = e.clientY - rect.top;
+    if (window.game) {
+        const coords = window.game.getCanvasCoords(e.clientX, e.clientY);
+        window.game.mouseX = coords.x;
+        window.game.mouseY = coords.y;
+    }
 });
 
 // Initialize the game

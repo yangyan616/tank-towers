@@ -2,9 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Tank Towers Defense</title>
     <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        html {
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: manipulation;
+        }
         body {
             margin: 0;
             padding: 0;
@@ -12,7 +23,12 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: manipulation;
             background: linear-gradient(135deg, #1a2a3d 0%, #0d1b2a 100%);
             font-family: Arial, sans-serif;
         }
@@ -37,10 +53,21 @@
             border-radius: 8px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             overflow: hidden;
+            max-width: 100%;
+        }
+        .canvas-wrap {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            line-height: 0;
         }
         #gameCanvas {
             background-image: linear-gradient(to bottom, #0a3142 0%, #1c4966 50%, #0a3142 100%);
             display: block;
+            max-width: 100%;
+            height: auto;
+            width: 100%;
+            touch-action: none;
         }
         #ui {
             color: white;
@@ -59,6 +86,8 @@
             flex-direction: column;
             gap: 8px;
             width: 200px;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
         }
         .towerBtn {
             background: linear-gradient(to bottom, #555 0%, #444 100%);
@@ -178,12 +207,20 @@
             opacity: 0.6;
             cursor: not-allowed;
             background: linear-gradient(to bottom, #444 0%, #333 100%);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
+            max-height: 100px;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
         }
         .locked-tower:hover {
             background: linear-gradient(to bottom, #444 0%, #333 100%);
             transform: none;
             box-shadow: none;
+        }
+        .locked-tower:hover .tower-tooltip,
+        .locked-tower:focus .tower-tooltip {
+            display: block;
         }
         .locked-tower::after {
             content: '🔒';
@@ -412,6 +449,82 @@
             margin-left: 2px;
             text-shadow: 0 0 3px rgba(255, 180, 0, 0.8);
         }
+        
+        #startWaveButton {
+            display: none;
+            margin: 20px auto;
+            padding: 12px 28px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(to bottom, #4CAF50 0%, #2E7D32 100%);
+            border: 2px solid #388E3C;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #startWaveButton.visible {
+            display: block;
+        }
+        #startWaveButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        }
+        #startWaveButton:active {
+            transform: scale(0.98);
+        }
+        
+        /* Mobile-friendly layout */
+        @media (max-width: 900px) {
+            body { padding: 8px; padding-bottom: 48px; justify-content: flex-start; padding-top: 5px; }
+            .game-title h1 { font-size: 20px; }
+            .game-hint { font-size: 12px; margin-bottom: 8px; }
+            #gameContainer { width: 100%; max-width: 100%; }
+            #ui { padding: 8px; font-size: 14px; flex-wrap: wrap; gap: 6px; }
+            #lives { margin-left: -108px; }
+            #towerButtons {
+                width: 160px;
+                top: 8px;
+                right: 8px;
+                gap: 6px;
+                max-height: 75vh;
+                overflow-x: hidden;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
+                overscroll-behavior: contain;
+                padding-bottom: 32px;
+            }
+            #sellButton, #upgradeButton {
+                padding: 6px 10px;
+                font-size: 12px;
+                min-height: 36px;
+                margin-top: 10px;
+            }
+            #upgradeButton { margin-top: 6px; }
+            .towerBtn { padding: 10px 12px; font-size: 13px; min-height: 44px; }
+            #toggleShopButton {
+                right: 168px;
+                top: 8px;
+                width: 44px;
+                height: 44px;
+                font-size: 22px;
+            }
+            #startWaveButton {
+                padding: 14px 24px;
+                font-size: 16px;
+                margin: 16px auto;
+                min-height: 48px;
+            }
+        }
+        @media (max-width: 500px) {
+            body { padding-bottom: 56px; }
+            .game-title h1 { font-size: 18px; }
+            #towerButtons { width: 140px; font-size: 12px; padding-bottom: 40px; }
+            #sellButton, #upgradeButton { padding: 5px 8px; font-size: 11px; min-height: 32px; }
+            #toggleShopButton { right: 148px; }
+        }
     </style>
 </head>
 <body>
@@ -426,7 +539,9 @@
             <div id="lives">Lives: <span id="livesCount" class="ui-value">10</span></div>
             <div id="wave">Wave: <span id="waveCount" class="ui-value">1</span></div>
         </div>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="canvas-wrap">
+            <canvas id="gameCanvas" width="800" height="880"></canvas>
+        </div>
         <button id="toggleShopButton" title="Toggle Tower Shop (Press T)">
             🛍️
         </button>
@@ -584,6 +699,8 @@
             </button>
         </div>
     </div>
+
+    <button type="button" id="startWaveButton" title="Start next wave">Start Wave</button>
 
     <!-- Start Screen Overlay -->
     <div id="startScreen">
